@@ -143,7 +143,13 @@ class ClaimApiTest {
     JsonNode created =
         postClaim(
             luis,
-            claimJson("POL-1002", "\"100.00\"", "2026-06-01", "Follow up visit", "medical-bill"));
+            claimJsonNamed(
+                "Luis Ortega",
+                "POL-1002",
+                "\"100.00\"",
+                "2026-06-01",
+                "Follow up visit",
+                "medical-bill"));
 
     assertThat(created.get("status").asText()).isEqualTo("ACCEPTED");
     assertThat(created.get("amount").asText()).isEqualTo("100.00");
@@ -159,7 +165,8 @@ class ClaimApiTest {
   void rejectsWhenOpenClaimsTogetherExceedTheCoverageLimit() throws Exception {
     JsonNode created =
         postClaim(
-            claimJson(
+            claimJsonNamed(
+                "Amira Shah",
                 "POL-1001",
                 "\"1.00\"",
                 "2026-06-01",
@@ -280,6 +287,26 @@ class ClaimApiTest {
   }
 
   @Test
+  void rejectsClaimFiledUnderAnotherPersonsName() throws Exception {
+    JsonNode created =
+        postClaim(
+            luis,
+            claimJsonNamed(
+                "Amira Shah",
+                "POL-1002",
+                "\"100.00\"",
+                "2026-06-01",
+                "Follow up visit",
+                "medical-bill"));
+
+    assertThat(created.get("status").asText()).isEqualTo("REJECTED");
+    assertThat(created.get("claimantName").asText()).isEqualTo("Amira Shah");
+    assertThat(codes(created)).containsExactly("CLAIMANT_NOT_POLICYHOLDER");
+    assertThat(severities(created, "CLAIMANT_NOT_POLICYHOLDER")).containsExactly("ERROR");
+    assertThat(created.get("payout").isNull()).isTrue();
+  }
+
+  @Test
   void allowsTheDeskOrigin() throws Exception {
     mockMvc
         .perform(
@@ -300,7 +327,8 @@ class ClaimApiTest {
                     .header("Origin", "http://127.0.0.1:5173")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
-                        claimJson(
+                        claimJsonNamed(
+                            "Luis Ortega",
                             "POL-1002",
                             "\"100.00\"",
                             "2026-06-01",
@@ -344,6 +372,17 @@ class ClaimApiTest {
       String incidentDate,
       String description,
       String... documents) {
+    return claimJsonNamed(
+        "Test Holder", policy, amountLiteral, incidentDate, description, documents);
+  }
+
+  private String claimJsonNamed(
+      String claimantName,
+      String policy,
+      String amountLiteral,
+      String incidentDate,
+      String description,
+      String... documents) {
     StringBuilder docs = new StringBuilder();
     for (int i = 0; i < documents.length; i++) {
       if (i > 0) {
@@ -352,9 +391,9 @@ class ClaimApiTest {
       docs.append('"').append(documents[i]).append('"');
     }
     return """
-{"policyNumber":"%s","claimantName":"Test Holder","amount":%s,"incidentDate":"%s","description":"%s","documentNames":[%s]}
+{"policyNumber":"%s","claimantName":"%s","amount":%s,"incidentDate":"%s","description":"%s","documentNames":[%s]}
 """
-        .formatted(policy, amountLiteral, incidentDate, description, docs);
+        .formatted(policy, claimantName, amountLiteral, incidentDate, description, docs);
   }
 
   private JsonNode postClaim(String json) throws Exception {

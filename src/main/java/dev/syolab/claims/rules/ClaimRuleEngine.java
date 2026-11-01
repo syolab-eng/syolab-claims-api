@@ -14,7 +14,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
-
+// Just a comment
 @Component
 public class ClaimRuleEngine {
 
@@ -32,6 +32,13 @@ public class ClaimRuleEngine {
     }
 
     List<ValidationFinding> findings = new ArrayList<>();
+    if (!samePerson(policy.holderName(), draft.claimantName())) {
+      findings.add(
+          finding(
+              FindingCode.CLAIMANT_NOT_POLICYHOLDER,
+              Severity.ERROR,
+              "The claimant name does not match the policyholder."));
+    }
     boolean inTerm =
         !draft.incidentDate().isBefore(policy.effectiveDate())
             && !draft.incidentDate().isAfter(policy.expirationDate());
@@ -60,6 +67,13 @@ public class ClaimRuleEngine {
               FindingCode.POSSIBLE_FRAUD, Severity.WARNING, "This claim needs a fraud review."));
     }
     return Assessment.from(findings);
+  }
+
+  private static boolean samePerson(String holderName, String claimantName) {
+    return holderName
+        .trim()
+        .toLowerCase(Locale.ROOT)
+        .equals(claimantName.trim().toLowerCase(Locale.ROOT));
   }
 
   private static boolean exceedsCoverage(Policy policy, List<Claim> openClaims, ClaimDraft draft) {
