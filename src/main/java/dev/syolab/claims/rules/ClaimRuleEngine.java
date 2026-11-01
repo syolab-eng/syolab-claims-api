@@ -14,7 +14,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
-
+// Just a comment
 @Component
 public class ClaimRuleEngine {
 
